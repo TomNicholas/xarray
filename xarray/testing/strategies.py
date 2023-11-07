@@ -2,6 +2,7 @@ from collections.abc import Hashable, Iterable, Mapping, Sequence
 from typing import Any, Protocol, Union, overload
 
 import hypothesis.extra.numpy as npst
+from hypothesis.extra.pandas import 
 import hypothesis.strategies as st
 import numpy as np
 
@@ -440,3 +441,139 @@ def unique_subset_of(
     return (
         {k: objs[k] for k in subset_keys} if isinstance(objs, Mapping) else subset_keys
     )
+
+
+@st.composite
+def alignable_variables(
+    draw: st.DrawFn,
+    *,
+    array_strategy_fn: Union[ArrayStrategyFn, None] = None,
+    dims: Union[
+        st.SearchStrategy[Union[Sequence[Hashable], Mapping[Hashable, int]]],
+        None,
+    ] = None,
+    dtype: st.SearchStrategy[np.dtype] = supported_dtypes(),
+    attrs: st.SearchStrategy[Mapping] = attrs(),
+    min_vars: int = 0,
+    max_vars: int = 3,
+    names: st.SearchStrategy[str] = names(),
+) -> dict[str, xr.Variable]:
+    """
+    Generates a dictionary of xarray.Variable objects which have mutually alignable dimensions.
+
+    Uses the variables strategy, but ensures that the variables all have dimensions drawn from a common set.
+
+    Requires the hypothesis package to be installed.
+
+    Parameters
+    ----------
+    array_strategy_fn: Callable which returns a strategy generating array-likes, optional
+        Callable must accept shape and dtype kwargs, and must generate results consistent with its input.
+        If not passed the default is to generate a small numpy array with one of the supported_dtypes.
+    dims: Strategy for generating the dimensions, optional
+        Can either be a strategy for generating a sequence of string dimension names,
+        or a strategy for generating a mapping of string dimension names to integer lengths along each dimension.
+        If provided as a mapping the array shape will be passed to array_strategy_fn.
+        Default is to generate arbitrary dimension names for each axis in data.
+    dtype: Strategy which generates np.dtype objects, optional
+        Will be passed in to array_strategy_fn.
+        Default is to generate any scalar dtype using supported_dtypes.
+        Be aware that this default set of dtypes includes some not strictly allowed by the array API standard.
+    attrs: Strategy which generates dicts, optional
+        Default is to generate a nested attributes dictionary containing arbitrary strings, booleans, integers, Nones,
+        and numpy arrays.
+    min_vars: Strategy which generates integers, optional
+        Number of variables to generate.
+        Default is to generate a minmium of 0 and a maximum of 3 variables.
+    max_vars
+    names:
+
+    Returns
+    -------
+    alignable_variables
+        dictionary mapping dimension names to xarray.Variable objects.
+    """
+    # draw dimensions first, then use them to construct all the variables
+    if dims is None:
+        _all_dims = dimension_sizes()
+    _all_dims = draw(dims)
+    if not isinstance(_all_dims, Mapping) or not all(isinstance(s, int) for s in _all_dims.values()):
+        raise TypeError()
+    if not all(s > 0 for s in _all_dims.values()):
+        raise ValueError()
+
+    var_dims = unique_subset_of(_all_dims)
+
+    alignable_variables_strategy = variables(
+        array_strategy_fn=array_strategy_fn,
+        dims=var_dims,
+        dtype=dtype,
+        attrs=attrs,
+    )
+
+    alignable_variables = st.dictionaries(
+        keys=names,
+        values=alignable_variables_strategy,
+        min_size=min_vars,
+        max_size=max_vars,
+    )
+
+    return alignable_variables
+
+
+@st.composite
+def indexes(
+    draw: st.DrawFn,
+    *,
+    index_strategy_function: st.SearchStrategy[pd.Index],
+    size: int,
+) -> xr.Index:
+    return
+
+
+@st.composite
+def coordinates(
+    draw: st.DrawFn,
+    *,
+    alignable_variables: st.SearchStrategy[dict[str, xr.Variable]] = None,
+    index_strategy_function: st.SearchStrategy[pd.Index]
+) -> xr.Coordinates:
+    """
+    Generates a dictionary of xarray.Variable objects which have mutually alignable dimensions.
+
+    Uses the variables strategy, but ensures that the variables all have dimensions drawn from a common set.
+
+    Requires the hypothesis package to be installed.
+
+    Parameters
+    ----------
+    array_strategy_fn: Callable which returns a strategy generating array-likes, optional
+        Callable must accept shape and dtype kwargs, and must generate results consistent with its input.
+        If not passed the default is to generate a small numpy array with one of the supported_dtypes.
+    dims: Strategy for generating the dimensions, optional
+        Can either be a strategy for generating a sequence of string dimension names,
+        or a strategy for generating a mapping of string dimension names to integer lengths along each dimension.
+        If provided as a mapping the array shape will be passed to array_strategy_fn.
+        Default is to generate arbitrary dimension names for each axis in data.
+    dtype: Strategy which generates np.dtype objects, optional
+        Will be passed in to array_strategy_fn.
+        Default is to generate any scalar dtype using supported_dtypes.
+        Be aware that this default set of dtypes includes some not strictly allowed by the array API standard.
+    attrs: Strategy which generates dicts, optional
+        Default is to generate a nested attributes dictionary containing arbitrary strings, booleans, integers, Nones,
+        and numpy arrays.
+    min_vars: Strategy which generates integers, optional
+        Number of variables to generate.
+        Default is to generate a minmium of 0 and a maximum of 3 variables.
+    max_vars
+    names:
+
+    Returns
+    -------
+    alignable_variables
+        dictionary mapping dimension names to xarray.Variable objects.
+    """
+
+
+def dataarrays():
+    ...
