@@ -12,6 +12,7 @@ from xarray.core import dtypes, merge
 from xarray.core.coordinates import Coordinates
 from xarray.core.indexes import PandasIndex
 from xarray.tests import (
+    ConcatenatableArray,
     InaccessibleArray,
     assert_array_equal,
     assert_equal,
@@ -1047,6 +1048,30 @@ class TestConcatDataArray:
             for _ in range(2)
         ]
         # should not raise
+        combined = concat(arrays, dim="z")
+        assert combined.shape == (2, 3, 3)
+        assert combined.dims == ("z", "x", "y")
+
+    # TODO same test also for Dataset
+    def test_concat_avoids_index_auto_creation(self) -> None:
+        # TODO once passing indexes={} directly to DataArray constructor is allowed then no need to create coords first
+        coords = Coordinates(
+            {"x": ConcatenatableArray(np.array([1, 2, 3]))}, indexes={}
+        )
+        arrays = [
+            DataArray(
+                ConcatenatableArray(np.zeros((3, 3))),
+                dims=["x", "y"],
+                coords=coords,
+            )
+            for _ in range(2)
+        ]
+        # should not raise on concat
+        combined = concat(arrays, dim="x")
+        assert combined.shape == (6, 3)
+        assert combined.dims == ("x", "y")
+
+        # should not raise on stack
         combined = concat(arrays, dim="z")
         assert combined.shape == (2, 3, 3)
         assert combined.dims == ("z", "x", "y")
