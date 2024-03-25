@@ -980,7 +980,7 @@ class TestConcatDataset:
         assert np.issubdtype(actual.x2.dtype, dtype)
 
     def test_concat_avoids_index_auto_creation(self) -> None:
-        # TODO once passing indexes={} directly to DataArray constructor is allowed then no need to create coords first
+        # TODO once passing indexes={} directly to Dataset constructor is allowed then no need to create coords first
         coords = Coordinates(
             {"x": ConcatenatableArray(np.array([1, 2, 3]))}, indexes={}
         )
@@ -996,10 +996,16 @@ class TestConcatDataset:
         assert combined["a"].shape == (6, 3)
         assert combined["a"].dims == ("x", "y")
 
+        # nor have auto-created any indexes
+        assert combined.indexes == {}
+
         # should not raise on stack
         combined = concat(datasets, dim="z")
         assert combined["a"].shape == (2, 3, 3)
         assert combined["a"].dims == ("z", "x", "y")
+
+        # nor have auto-created any indexes
+        assert combined.indexes == {}
 
 
 class TestConcatDataArray:
@@ -1092,10 +1098,16 @@ class TestConcatDataArray:
         assert combined.shape == (6, 3)
         assert combined.dims == ("x", "y")
 
+        # nor have auto-created any indexes
+        assert combined.indexes == {}
+
         # should not raise on stack
         combined = concat(arrays, dim="z")
         assert combined.shape == (2, 3, 3)
         assert combined.dims == ("z", "x", "y")
+
+        # nor have auto-created any indexes
+        assert combined.indexes == {}
 
     @pytest.mark.parametrize("fill_value", [dtypes.NA, 2, 2.0])
     def test_concat_fill_value(self, fill_value) -> None:
@@ -1204,6 +1216,7 @@ class TestConcatDataArray:
 @pytest.mark.parametrize("attr1", ({"a": {"meta": [10, 20, 30]}}, {"a": [1, 2, 3]}, {}))
 @pytest.mark.parametrize("attr2", ({"a": [1, 2, 3]}, {}))
 def test_concat_attrs_first_variable(attr1, attr2) -> None:
+
     arrs = [
         DataArray([[1], [2]], dims=["x", "y"], attrs=attr1),
         DataArray([[3], [4]], dims=["x", "y"], attrs=attr2),
