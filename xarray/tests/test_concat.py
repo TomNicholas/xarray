@@ -979,6 +979,28 @@ class TestConcatDataset:
 
         assert np.issubdtype(actual.x2.dtype, dtype)
 
+    def test_concat_avoids_index_auto_creation(self) -> None:
+        # TODO once passing indexes={} directly to DataArray constructor is allowed then no need to create coords first
+        coords = Coordinates(
+            {"x": ConcatenatableArray(np.array([1, 2, 3]))}, indexes={}
+        )
+        datasets = [
+            Dataset(
+                {"a": (["x", "y"], ConcatenatableArray(np.zeros((3, 3))))},
+                coords=coords,
+            )
+            for _ in range(2)
+        ]
+        # should not raise on concat
+        combined = concat(datasets, dim="x")
+        assert combined["a"].shape == (6, 3)
+        assert combined["a"].dims == ("x", "y")
+
+        # should not raise on stack
+        combined = concat(datasets, dim="z")
+        assert combined["a"].shape == (2, 3, 3)
+        assert combined["a"].dims == ("z", "x", "y")
+
 
 class TestConcatDataArray:
     def test_concat(self) -> None:
@@ -1052,7 +1074,6 @@ class TestConcatDataArray:
         assert combined.shape == (2, 3, 3)
         assert combined.dims == ("z", "x", "y")
 
-    # TODO same test also for Dataset
     def test_concat_avoids_index_auto_creation(self) -> None:
         # TODO once passing indexes={} directly to DataArray constructor is allowed then no need to create coords first
         coords = Coordinates(
